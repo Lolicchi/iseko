@@ -1,22 +1,9 @@
-import { RawGuild } from '../structures/RawGuild.ts'
+import { ApiRequest } from '../structures/ApiRequest.ts'
+import { Cacher } from '../structures/Cacher.ts'
 import { Guild } from '../structures/Guild.ts'
-import { Constants } from '../utils/Constants.ts'
-import { fetchRes } from '../utils/fetchRes.ts'
 
-export class Guilds {
-  cache: Map<string, Guild> = new Map()
-  fetch: (guildId: string) => Promise<Guild | undefined>
-
-  constructor(token: string) {
-    this.fetch = async (guildId: string) => {
-      const guild = await fetchRes<RawGuild<'Fetched'>>(
-        Constants.Endpoints.getGuild(guildId),
-        token
-      )
-
-      if (!guild) return
-
-      return new Guild(guild)
-    }
+export class Guilds extends Cacher<typeof Guild> {
+  constructor(api: ApiRequest) {
+    super(api, Guild)
   }
 }

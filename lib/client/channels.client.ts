@@ -1,30 +1,25 @@
+import { ApiRequest } from '../structures/ApiRequest.ts'
+import { Cacher } from '../structures/Cacher.ts'
 import { Channel } from '../structures/Channel.ts'
-import { Iseko } from './client.ts'
 
-export class Channels {
-  cache: Map<string, Channel> = new Map()
-  get: (channelId: string) => Promise<Channel | undefined>
-  send: (
-    channelId: string,
-    message: string | { message?: string; stickers?: string[] }
-  ) => Promise<{ content: string }>
+export class Channels extends Cacher<typeof Channel> {
+  constructor(api: ApiRequest) {
+    super(api, Channel)
 
-  constructor({
-    api: {
-      getChannel,
-      channels: { send }
-    }
-  }: Iseko) {
-    this.get = async channelId => {
-      if (this.cache.has(channelId)) return this.cache.get(channelId)
-      const rawChannel = await getChannel(channelId)
-      return rawChannel ? new Channel(rawChannel) : undefined
-    }
-
-    this.send = send
+    this.send = this.send.bind(this)
   }
 
-  // async send(channelId:string) {
-
-  // }
+  send(
+    channelId: string,
+    message:
+      | string
+      | {
+          message?: string
+          // deno-lint-ignore no-explicit-any
+          embeds?: Record<string, any>[]
+          stickers?: string[]
+        }
+  ) {
+    this.api.channels.send(channelId, message)
+  }
 }

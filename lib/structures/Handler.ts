@@ -1,33 +1,24 @@
-import { Iseko } from '../client/client.ts'
 import { IModule } from '../interfaces/IModule.ts'
+import { Iseko } from '../types/Iseko.ts'
 
 export class Handler<
   ModName extends string = string,
   Module extends IModule = IModule
 > {
-  path: (client: Iseko) => Promise<string | null>
-  run: ({
-    client,
-    name,
-    mod
-  }: {
-    client: Iseko
-    name: ModName
-    mod: Module
-  }) => void
+  path: (client: Iseko.LoggedIn) => Promise<string | null>
 
   constructor(
     targetPath: string,
-    run: ({
+    public run: ({
       client,
       name,
       mod
     }: {
-      client: Iseko
+      client: Iseko.LoggedIn
       name: ModName
       mod: Module
     }) => void,
-    condition?: (client: Iseko) => boolean | Promise<boolean>
+    condition?: (client: Iseko.LoggedIn) => boolean | Promise<boolean>
   ) {
     this.path = async client => {
       if (condition && !(await condition(client))) return null
@@ -53,7 +44,6 @@ export class Handler<
         return null
       }
     }
-    this.run = run
   }
 }
 
@@ -62,6 +52,6 @@ export class Handler<
 //   Module extends IMod = IMod
 // >(
 //   path: string,
-//   run: (args: { client: Iseko; modName: ModName; module: Module }) => void,
+//   run: (args: { client: ReadyClient; modName: ModName; module: Module }) => void,
 //   condition?: () => boolean
 // ) => Object.assign(run, { path, condition })

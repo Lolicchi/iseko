@@ -1,6 +1,6 @@
 import { type Constants } from '../utils/Constants.ts'
 
-export interface IPayload {
+export interface Payload {
   t: string | null //keyof typeof Constants.Events | null
   s: number | null
   op: typeof Constants.OP[keyof typeof Constants.OP]
@@ -8,7 +8,7 @@ export interface IPayload {
   d: any
 }
 
-// export interface IPayload<
+// export interface Payload<
 //   OP extends typeof Constants.OP[keyof typeof Constants.OP] = 0,
 //   T extends typeof Constants.Events[keyof typeof Constants.Events] | null = null
 // > {

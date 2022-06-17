@@ -1,11 +1,11 @@
 import { type Iseko } from '../client/client.ts'
-import { type IPayload } from '../interfaces/IPayload.ts'
+import { type Payload } from '../interfaces/Payload.ts'
 import { ClientEvents } from './ClientEvents.ts'
 
 export class GatewayEvent {
   run: (args: {
     client: Iseko
-    payload: IPayload
+    payload: Payload
     eventRunner: <Event extends keyof ClientEvents = keyof ClientEvents>(
       eventName: Event,
       ...eventArgs: ClientEvents[Event]
@@ -15,7 +15,7 @@ export class GatewayEvent {
   constructor(
     run: (args: {
       client: Iseko
-      payload: IPayload
+      payload: Payload
       eventRunner: <Event extends keyof ClientEvents = keyof ClientEvents>(
         eventName: Event,
         ...eventArgs: ClientEvents[Event]

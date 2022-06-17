@@ -1,9 +1,9 @@
 import { parse } from './deps.ts'
-import { Iseko } from './client/client.ts'
 import { handlers } from './handlers/handlers.ts'
 import { IModule } from './interfaces/IModule.ts'
+import { Iseko } from './types/Iseko.ts'
 
-export const handler = (client: Iseko): void => {
+export const handler = (client: Iseko.LoggedIn): void => {
   const recursiveImport = async <ModuleType>(
     dirPath: string,
     mods: { name: string; mod: ModuleType }[] = []
@@ -14,7 +14,8 @@ export const handler = (client: Iseko): void => {
 
       mods.push({
         name: parse(file.name).name,
-        mod: (await import(`${Deno.cwd()}/${dirPath}/${file.name}`)).default
+        mod: (await import(`file://${Deno.cwd()}/${dirPath}/${file.name}`))
+          .default
       })
     }
     return mods
@@ -24,8 +25,11 @@ export const handler = (client: Iseko): void => {
     const path = await handler.path(client)
     if (!path) return
     ;(await recursiveImport<IModule>(path)).forEach(importedModule =>
-      //@ts-ignore=will fix later
-      handler.run({ ...importedModule, client })
+      //@ts-ignore=name is of type string, make it accept type string
+      handler.run({
+        ...importedModule,
+        client
+      })
     )
   })
 }

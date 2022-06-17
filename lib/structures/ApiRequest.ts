@@ -3,18 +3,56 @@ import { RawChannel } from './RawChannel.ts'
 import { RawGuild } from './RawGuild.ts'
 
 export class ApiRequest {
-  getGuild: (guildId: string) => Promise<RawGuild<'Fetched'> | undefined>
-  getChannel: (channelId: string) => Promise<RawChannel | undefined>
-  channels: {
-    send: (
+  guilds = {
+    get: async (guildId?: string) => {
+      return <RawGuild<'Fetched'> | undefined>(
+        await this.request(
+          guildId
+            ? Constants.Endpoints.getGuild(guildId)
+            : Constants.Endpoints.getGuilds
+        )
+      )
+    }
+  }
+
+  channels = {
+    get: async (channelId: string) => {
+      return <RawChannel | undefined>(
+        await this.request(Constants.Endpoints.getChannel(channelId))
+      )
+    },
+    send: async (
       channelId: string,
-      message: string | { message?: string; stickers?: string[] }
-    ) => Promise<{ content: string }>
+      message:
+        | string
+        | {
+            message?: string
+            // deno-lint-ignore no-explicit-any
+            embeds?: Record<string, any>[]
+            stickers?: string[]
+          }
+    ) => {
+      // do a check if atleast one of the required props is passed or ask how to declare types for that
+      return <{ content: string }>await this.request(
+        `channels/${channelId}/messages`,
+        {
+          method: 'POST',
+          body:
+            typeof message == 'string'
+              ? { content: message }
+              : {
+                  content: message.message,
+                  sticker_ids: message.stickers,
+                  embeds: message.embeds
+                }
+        }
+      )
+    }
   }
 
   constructor(
     token: string,
-    request: <T>(
+    private request: <T>(
       endpoint: string,
       options?:
         | {
@@ -35,52 +73,19 @@ export class ApiRequest {
       if (!options.method) options.method = 'GET'
       if (!options.body) options.body = null
 
-      const res = await (
-        await fetch(`${Constants.API}/${endpoint}`, {
-          method: options.method,
-          headers: {
-            ...options.headers,
-            'Content-Type': 'application/json',
-            Authorization: token
-          },
-          body: JSON.stringify(options.body)
-        })
-      ).json()
-      console.log(res)
-      if (res.code && (res.code !== 200 || res.code !== 204)) throw res
-      return res
-    }
-  ) {
-    this.getGuild = async (guildId: string) =>
-      <RawGuild<'Fetched'> | undefined>await request(`guilds/${guildId}`)
+      const res = await fetch(`${Constants.API}/${endpoint}`, {
+        method: options.method,
+        headers: {
+          ...options.headers,
+          'Content-Type': 'application/json',
+          Authorization: token
+        },
+        body: JSON.stringify(options.body)
+      })
 
-    this.getChannel = async (channelId: string) =>
-      <RawChannel | undefined>await request(`channels/${channelId}`)
-
-    this.channels = {
-      send: async (
-        channelId: string,
-        message:
-          | string
-          | {
-              message?: string
-              stickers?: string[]
-            }
-      ) => {
-        // do a check if atleast one of the required props is passed or ask how to declare types for that
-        return <{ content: string }>(
-          await request(`channels/${channelId}/messages`, {
-            method: 'POST',
-            body:
-              typeof message == 'string'
-                ? { content: message }
-                : {
-                    content: message.message,
-                    sticker_ids: message.stickers
-                  }
-          })
-        )
-      }
+      // console.log(res)
+      if (!res.ok) throw res
+      return await res.json()
     }
-  }
+  ) {}
 }

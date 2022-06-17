@@ -22,9 +22,10 @@ export const Constants = {
   },
   Events: {
     READY: 'ready',
-    // MESSAGE_CREATE: 'messageCreate',
+    MESSAGE_CREATE: 'messageCreate',
     // GUILD_MEMBER_UPDATE: 'guildMemberUpdate',
-    GUILD_MEMBER_ADD: 'guildMemberAdd'
+    GUILD_MEMBER_ADD: 'guildMemberAdd',
+    GUILD_MEMBER_REMOVE: 'guildMemberRemove'
   },
   Presence: {
     PLAYING: 0,

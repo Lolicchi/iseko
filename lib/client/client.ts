@@ -1,97 +1,83 @@
-import { ClientWebSocket } from './ws.client.ts'
-import { type ClientUser } from './user.client.ts'
-import { Guilds } from './guilds.client.ts'
-import { Channels } from './channels.client.ts'
-import { type ClientEvents } from '../structures/ClientEvents.ts'
-import { Voice } from './voice.client.ts'
-import { handler } from '../Handler.ts' // casing error
+import { GatewayPayloads } from '../gateway/payloads.gateway.ts'
+import { handler } from '../Handler.ts'
+import { Payload } from '../interfaces/Payload.ts'
+import { ApiRequest } from '../structures/ApiRequest.ts'
+import type { Iseko as IIseko } from '../types/Iseko.ts'
+import { IsekoOptions } from '../types/IsekoOptions.ts'
 import { Constants } from '../utils/Constants.ts'
-import { IPresence } from '../interfaces/IPresence.ts'
-import { RawPresence } from '../structures/RawPresence.ts'
-import { ApiRequest } from '../structures/ApiRequest.ts' //change to http url
+import { Channels } from './channels.client.ts'
+import { Guilds } from './guilds.client.ts'
+import { Voice } from './voice.client.ts'
+import { ClientWebSocket } from './ws.client.ts'
+import { ClientPresence } from '../structures/ClientPresence.ts'
 
-export class Iseko<isReady extends boolean = boolean> {
-  user!: isReady extends true
-    ? ClientUser
-    : isReady extends false
-    ? undefined
-    : ClientUser | undefined
-  guilds: Guilds
-  channels: Channels
-  ws: ClientWebSocket
-  connect: (token?: string) => void
-  token: string
-  voice: Voice = new Voice(this)
-  debug = false
-  events?:
-    | ({
-        [Key in keyof ClientEvents]?: (
-          args: { client: Iseko } & ClientEvents[Key]
-        ) => void
-      } & { dir?: string })
-    | boolean
-  api: ApiRequest
-  prefix: string | string[] | undefined
+export const Iseko = (args: IsekoOptions) => {
+  const parentArr: [new () => IIseko.LoggedOut] = [
+    class Iseko_Dev {
+      api = args.api || new ApiRequest(args.token)
+      events?
+      plugins?
+      prefix?
 
-  constructor({
-    api,
-    token,
-    intents,
-    prefix,
-    plugins,
-    events,
-    debug
-  }: {
-    token: string
-    intents?: string[] | number
-    prefix?: string | string[]
-    api?: ApiRequest
-    plugins?: (
-      | { init(client: Iseko): void }
-      | Promise<{ init(client: Iseko): void }>
-    )[]
-    events?:
-      | ({
-          [Key in keyof ClientEvents]?: ({
-            client,
-            ...args
-          }: { client: Iseko } & ClientEvents[Key]) => void
-        } & { dir?: string })
-      | boolean
-      | undefined
-    debug?: boolean
-  }) {
-    if (debug || Deno.args.includes('--debug')) this.debug = true
-    if (prefix) this.prefix = prefix
-    this.token = token
-    this.api = api || new ApiRequest(this.token)
-    this.ws = new ClientWebSocket(this)
-    this.events = !events ? {} : events == true ? {} : events
-    this.guilds = new Guilds(this.token)
-    this.channels = new Channels(this)
-    this.connect = (token = this.token) => {
-      this.ws.identify(token, intents)
+      constructor() {
+        args.events && (this.events = args.events)
+        args.plugins && (this.plugins = args.plugins)
+        args.prefix && (this.prefix = args.prefix)
+      }
+
+      connect() {
+        return new Promise<IIseko.LoggedIn>((resolve, reject) => {
+          const ws = new ClientWebSocket()
+          ws.addEventListener('close', () => reject('ws closed'))
+
+          ws.addEventListener('open', () => {
+            const loggedInClient: IIseko.LoggedIn =
+              new (class Iseko_Dev extends parentArr[0] {
+                channels = new Channels(this.api)
+                guilds = new Guilds(this.api)
+                user = null
+                ws = ws
+                presence = new ClientPresence(this.ws)
+                voice = new Voice(this.ws, this.channels)
+
+                // constructor() {
+                //   super()
+                // }
+
+                disconnect() {
+                  this.ws.close()
+                }
+              })()
+
+            console.log('ws opened')
+
+            //fix handler for multiple clients
+            handler(loggedInClient)
+
+            ws.onmessage = rawData => {
+              const payload: Payload = JSON.parse(rawData.data.toString()),
+                opName = (
+                  Object.keys(Constants.OP) as (keyof typeof Constants.OP)[]
+                ).find(key => Constants.OP[key] == payload.op)
+
+              if (!opName) return
+              // console.log(opName)
+              GatewayPayloads[opName]({
+                client: loggedInClient,
+                payload
+              })
+            }
+
+            ws.identify(args.token)
+
+            resolve(loggedInClient)
+          })
+        })
+      }
     }
+  ]
 
-    handler(this)
+  const loggedOutClient: IIseko.LoggedOut = new parentArr[0]()
 
-    if (plugins) {
-      plugins.forEach(plugin => {
-        if (plugin instanceof Promise) {
-          plugin.then(({ init }) => init(this))
-          return
-        }
-        plugin.init(this)
-      })
-    }
-  }
-
-  setPresence = (presence: IPresence): void => {
-    this.ws.send(
-      JSON.stringify({
-        op: Constants.OP.PRESENCE_UPDATE,
-        d: new RawPresence(presence)
-      })
-    )
-  }
+  return loggedOutClient
 }
